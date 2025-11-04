@@ -2,7 +2,7 @@ const https = require('https');
 
 exports.handler = async function(event, context) {
   return new Promise((resolve, reject) => {
-    https.get('https://www.vegagerdin.is/vedur/api/camera', (res) => {
+    https.get('http://www4.vegagerdin.is/xml/myndavelar.xml', (res) => {
       let data = '';
       
       res.on('data', (chunk) => {
@@ -13,7 +13,7 @@ exports.handler = async function(event, context) {
         resolve({
           statusCode: 200,
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/xml',
             'Access-Control-Allow-Origin': '*'
           },
           body: data
