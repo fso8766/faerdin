@@ -1,8 +1,8 @@
-const https = require('https');
+const http = require('http');
 
 exports.handler = async function(event, context) {
   return new Promise((resolve, reject) => {
-    https.get('http://www4.vegagerdin.is/xml/myndavelar.xml', (res) => {
+    http.get('http://www4.vegagerdin.is/xml/myndavelar.xml', (res) => {
       let data = '';
       
       res.on('data', (chunk) => {
