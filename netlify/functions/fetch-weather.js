@@ -1,20 +1,29 @@
+const https = require('https');
+
 exports.handler = async function(event, context) {
-  try {
-    const response = await fetch('https://www.vegagerdin.is/vedur/api/weather');
-    const data = await response.json();
-    
-    return {
-      statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      },
-      body: JSON.stringify(data)
-    };
-  } catch (error) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Failed to fetch weather data' })
-    };
-  }
+  return new Promise((resolve, reject) => {
+    https.get('https://www.vegagerdin.is/vedur/api/weather', (res) => {
+      let data = '';
+      
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+      
+      res.on('end', () => {
+        resolve({
+          statusCode: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          },
+          body: data
+        });
+      });
+    }).on('error', (error) => {
+      resolve({
+        statusCode: 500,
+        body: JSON.stringify({ error: 'Failed to fetch weather data', details: error.message })
+      });
+    });
+  });
 };
