@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="is">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Veðurstöðvar</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #2a5a8a;
+            padding: 30px;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        
+        .time-display {
+            text-align: center;
+            color: #FFD700;
+            font-size: 1.8em;
+            margin-bottom: 30px;
+            letter-spacing: 3px;
+            font-weight: 700;
+        }
+        
+        .locations-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(650px, 1fr));
+            gap: 30px;
+        }
+        
+        .location-card {
+            background: #0d2847;
+            border: 8px solid #2a5a8a;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        
+        .location-header {
+            background: #2a5a8a;
+            color: white;
+            padding: 25px 30px;
+            border-bottom: 5px solid #FFD700;
+        }
+        
+        .location-name {
+            font-size: 2.5em;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 8px;
+        }
+        
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+        }
+        
+        .data-cell {
+            padding: 35px 20px;
+            text-align: center;
+            background: #0d2847;
+            border-right: 3px solid #2a5a8a;
+            border-bottom: 3px solid #2a5a8a;
+        }
+        
+        .data-cell:nth-child(3) {
+            border-right: none;
+        }
+        
+        .data-label {
+            font-size: 1em;
+            color: #90CAF9;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .data-value {
+            font-size: 3em;
+            font-weight: 700;
+            color: #FFD700;
+            text-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
+        }
+        
+        .wind-display {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 3em;
+            font-weight: 700;
+            color: #FFD700;
+        }
+        
+        .wind-unit {
+            font-size: 0.4em;
+            color: #90CAF9;
+        }
+        
+        .conditions-section {
+            padding: 25px 30px;
+            background: #0d2847;
+        }
+        
+        .condition-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px 20px;
+            margin-bottom: 12px;
+            background: #1a3a5c;
+            border-left: 5px solid;
+        }
+        
+        .condition-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .condition-item.status-good {
+            border-color: #4CAF50;
+        }
+        
+        .condition-item.status-warning {
+            border-color: #FFA726;
+        }
+        
+        .condition-item.status-danger {
+            border-color: #F44336;
+        }
+        
+        .condition-icon {
+            font-size: 2em;
+        }
+        
+        .condition-text {
+            font-size: 1.3em;
+            color: #FFFFFF;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+        
+        .status-badge {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 10px 20px;
+            background: rgba(0,0,0,0.7);
+            color: #FFD700;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 100px;
+            font-size: 2em;
+            color: #FFD700;
+        }
+        
+        @media (max-width: 1000px) {
+            .locations-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="status-badge" id="status">Hleður...</div>
+    
+    <div class="container">
+        <div class="time-display" id="timeDisplay"></div>
+        <div id="content">
+            <div class="loading">Hleður gögn...</div>
+        </div>
+    </div>
+
+    <script>
+        console.log('Script starting...');
+        
+        function updateTime() {
+            const now = new Date();
+            const time = now.toLocaleTimeString('is-IS', { hour: '2-digit', minute: '2-digit' });
+            const date = now.toLocaleDateString('is-IS', { weekday: 'short', day: '2-digit', month: 'short' });
+            document.getElementById('timeDisplay').textContent = `${date.toUpperCase()} ${time}`;
+        }
+        
+        function updateStatus(msg) {
+            document.getElementById('status').textContent = msg;
+        }
+        
+        function getWindArrow(dir) {
+            const arrows = {
+                'N': '↓', 'NNE': '↙', 'NE': '↙', 'ENE': '↙',
+                'E': '←', 'ESE': '↖', 'SE': '↖', 'SSE': '↖',
+                'S': '↑', 'SSW': '↗', 'SW': '↗', 'WSW': '↗',
+                'W': '→', 'WNW': '↘', 'NW': '↘', 'NNW': '↘'
+            };
+            return arrows[dir] || '○';
+        }
+        
+        function displayData(locations, weatherData, conditions) {
+            console.log('Displaying data:', locations);
+            
+            const html = locations.map(loc => {
+                const weather = weatherData[loc.name] || {};
+                const cond = conditions[loc.name] || [];
+                
+                const temp = weather.T || '--';
+                const windSpeed = weather.F || '--';
+                const windDir = weather.D || '--';
+                const roadTemp = weather.R || '--';
+                const arrow = getWindArrow(windDir);
+                
+                const condHtml = cond.length > 0 
+                    ? cond.map(c => `
+                        <div class="condition-item ${c.status}">
+                            <div class="condition-icon">${c.icon}</div>
+                            <div class="condition-text">${c.text}</div>
+                        </div>
+                    `).join('')
+                    : `
+                        <div class="condition-item status-good">
+                            <div class="condition-icon">✓</div>
+                            <div class="condition-text">Greiðfært</div>
+                        </div>
+                    `;
+                
+                return `
+                    <div class="location-card">
+                        <div class="location-header">
+                            <div class="location-name">${loc.name}</div>
+                        </div>
+                        
+                        <div class="data-grid">
+                            <div class="data-cell">
+                                <div class="data-label">Vindur</div>
+                                <div class="wind-display">
+                                    <span>${arrow}</span>
+                                    <span>${windSpeed}</span>
+                                    <span class="wind-unit">m/s</span>
+                                </div>
+                            </div>
+                            
+                            <div class="data-cell">
+                                <div class="data-label">Hiti</div>
+                                <div class="data-value">${temp}°C</div>
+                            </div>
+                            
+                            <div class="data-cell">
+                                <div class="data-label">Veghiti</div>
+                                <div class="data-value">${roadTemp}°C</div>
+                            </div>
+                        </div>
+                        
+                        <div class="conditions-section">
+                            ${condHtml}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            document.getElementById('content').innerHTML = `<div class="locations-grid">${html}</div>`;
+        }
+        
+        async function loadRealData() {
+            try {
+                updateStatus('Hleður raunverulegt...');
+                console.log('Fetching real data via Netlify functions...');
+                
+                const [cameraRes, conditionRes, weatherRes] = await Promise.all([
+                    fetch('/.netlify/functions/fetch-cameras'),
+                    fetch('/.netlify/functions/fetch-faerd'),
+                    fetch('/.netlify/functions/fetch-weather')
+                ]);
+                
+                if (!cameraRes.ok || !conditionRes.ok || !weatherRes.ok) {
+                    throw new Error('API response not OK');
+                }
+                
+                const cameraData = await cameraRes.json();
+                const roadConditions = await conditionRes.json();
+                const weatherJson = await weatherRes.json();
+                
+                console.log('✓ Real data loaded successfully!');
+                updateStatus('✓ Rauntíma gögn');
+                
+                const targetNames = ['hálfdán', 'halfdan', 'miklidalur'];
+                const targetLocations = cameraData
+                    .filter(c => targetNames.some(n => c.Myndavel.toLowerCase().includes(n)))
+                    .reduce((acc, c) => {
+                        if (!acc.find(l => l.name === c.Myndavel)) {
+                            acc.push({ name: c.Myndavel, lat: c.Breidd, lon: c.Lengd });
+                        }
+                        return acc;
+                    }, []);
+                
+                const weatherData = {};
+                if (weatherJson.results) {
+                    weatherJson.results.forEach(s => {
+                        weatherData[s.name] = s;
+                    });
+                }
+                
+                const processedWeather = {};
+                targetLocations.forEach(loc => {
+                    const station = Object.keys(weatherData).find(s => 
+                        s.toLowerCase().includes(loc.name.toLowerCase()) ||
+                        loc.name.toLowerCase().includes(s.toLowerCase())
+                    );
+                    processedWeather[loc.name] = station ? weatherData[station] : {};
+                });
+                
+                const processedConditions = {};
+                targetLocations.forEach(loc => {
+                    const nearby = roadConditions
+                        .filter(c => {
+                            const dist = Math.sqrt(Math.pow(c.Breidd - loc.lat, 2) + Math.pow(c.Lengd - lon, 2));
+                            return dist < 0.5;
+                        })
+                        .slice(0, 2)
+                        .map(c => ({
+                            icon: c.Astand === 'ALLUR_AKSTUR_BANN' ? '🚫' : c.Astand === 'VEGAVINNA' ? '🚧' : '✓',
+                            text: c.Lysing,
+                            status: c.Astand === 'ALLUR_AKSTUR_BANN' ? 'status-danger' : 'status-warning'
+                        }));
+                    processedConditions[loc.name] = nearby;
+                });
+                
+                displayData(targetLocations, processedWeather, processedConditions);
+                
+            } catch (error) {
+                console.error('Real data failed:', error);
+                updateStatus('⚠ Villa');
+                
+                document.getElementById('content').innerHTML = `
+                    <div class="loading">
+                        ⚠️ Gat ekki hlaðið gögnum<br>
+                        <span style="font-size: 0.6em; margin-top: 20px; display: block;">
+                            Athugaðu Netlify function logs
+                        </span>
+                    </div>
+                `;
+            }
+        }
+        
+        updateStatus('Hleður...');
+        updateTime();
+        loadRealData();
+        setInterval(loadRealData, 300000);
+        setInterval(updateTime, 60000);
+    </script>
+</body>
+</html>

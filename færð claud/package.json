@@ -1,0 +1,8 @@
+{
+  "name": "iceland-road-conditions",
+  "version": "1.0.0",
+  "description": "Road conditions display for Iceland",
+  "dependencies": {
+    "node-fetch": "^2.6.7"
+  }
+}
